@@ -4,16 +4,22 @@ import axios from "axios";
 const API_BASE = "https://mcdm-backend.onrender.com"; // FastAPI backend
 
 function parsePastedTable(text) {
-  // Split into non-empty lines
   const rows = text
     .trim()
     .split(/\r?\n/)
     .map((r) => r.trim())
     .filter((r) => r.length > 0);
 
+  if (rows.length === 0) {
+    throw new Error("No data found in pasted text");
+  }
+
   const matrix = rows.map((row) => {
     // split by comma, semicolon, tab or spaces
     const cells = row.split(/[\s,;]+/).filter((c) => c.length > 0);
+    if (cells.length === 0) {
+      throw new Error("Empty row found in pasted text");
+    }
     return cells.map((c) => {
       const v = Number(c);
       if (Number.isNaN(v)) {
@@ -33,8 +39,8 @@ function parsePastedTable(text) {
 }
 
 export default function App() {
-
   const [pasteText, setPasteText] = useState("");
+
   // Criteria: each has a name and type (min/max)
   const [criteria, setCriteria] = useState([
     { name: "Ra (Surface Roughness)", type: "min" },
@@ -124,12 +130,39 @@ export default function App() {
     setCriteria(updated);
   };
 
+  // NEW: Fill table from pasted matrix
+  const handlePasteIntoTable = () => {
+    try {
+      const matrix = parsePastedTable(pasteText);
+
+      const m = matrix.length;
+      const n = matrix[0].length;
+
+      // Build criteria array if needed
+      const newCriteria = Array.from({ length: n }, (_, j) => ({
+        name: criteria[j]?.name || `Criterion ${j + 1}`,
+        type: criteria[j]?.type || "max",
+      }));
+
+      // Build alternatives with values from matrix
+      const newAlternatives = Array.from({ length: m }, (_, i) => ({
+        name: alternatives[i]?.name || `Alt ${i + 1}`,
+        values: matrix[i].map((v) => String(v)),
+      }));
+
+      setCriteria(newCriteria);
+      setAlternatives(newAlternatives);
+      setError("");
+    } catch (e) {
+      setError(e.message || "Failed to parse pasted table");
+    }
+  };
+
   // Build payload and call backend
   const handleRun = async () => {
     setError("");
     setResponse(null);
 
-    // Validate numbers
     try {
       const decisionMatrix = alternatives.map((alt, ai) => {
         return alt.values.map((v, ci) => {
@@ -175,35 +208,9 @@ export default function App() {
     const maircaRanking = response.mairca_ranking;
 
     const nameForIndex = (i) =>
-      alternatives[i] ? alternatives[i].name || `Alternative ${i + 1}` : `Alternative ${i + 1}`;
-
-
-    const handlePasteIntoTable = () => {
-  try {
-    const matrix = parsePastedTable(pasteText);
-
-    const m = matrix.length;
-    const n = matrix[0].length;
-
-    // Build criteria array if needed
-    const newCriteria = Array.from({ length: n }, (_, j) => ({
-      name: criteria[j]?.name || `Criterion ${j + 1}`,
-      type: criteria[j]?.type || "max",
-    }));
-
-    // Build alternatives with values from matrix
-    const newAlternatives = Array.from({ length: m }, (_, i) => ({
-      name: alternatives[i]?.name || `Alt ${i + 1}`,
-      values: matrix[i].map((v) => String(v)),
-    }));
-
-    setCriteria(newCriteria);
-    setAlternatives(newAlternatives);
-    setError("");
-  } catch (e) {
-    setError(e.message || "Failed to parse pasted table");
-  }
-};
+      alternatives[i]
+        ? alternatives[i].name || `Alternative ${i + 1}`
+        : `Alternative ${i + 1}`;
 
     return (
       <div style={{ marginTop: "1rem" }}>
@@ -274,64 +281,66 @@ export default function App() {
             alignItems: "flex-start",
           }}
         >
-          {/* LEFT: TABLE INPUT */}
+          {/* LEFT: PASTE + TABLE INPUT */}
           <div>
+            {/* Paste matrix section */}
             <section
-  style={{
-    marginBottom: "1rem",
-    padding: "0.75rem",
-    borderRadius: "0.75rem",
-    border: "1px solid #1f2937",
-    background: "#020617",
-  }}
->
-  <div style={{ marginBottom: "0.5rem" }}>
-    <strong>Paste matrix from Excel / CSV (optional)</strong>
-    <div style={{ fontSize: "0.8rem", color: "#9ca3af" }}>
-      Paste rows of numbers here. We&apos;ll fill the table for you.
-    </div>
-  </div>
+              style={{
+                marginBottom: "1rem",
+                padding: "0.75rem",
+                borderRadius: "0.75rem",
+                border: "1px solid #1f2937",
+                background: "#020617",
+              }}
+            >
+              <div style={{ marginBottom: "0.5rem" }}>
+                <strong>Paste matrix from Excel / CSV (optional)</strong>
+                <div style={{ fontSize: "0.8rem", color: "#9ca3af" }}>
+                  Paste rows of numbers here. We&apos;ll fill the table for you.
+                </div>
+              </div>
 
-  <textarea
-    value={pasteText}
-    onChange={(e) => setPasteText(e.target.value)}
-    placeholder={`Example:
+              <textarea
+                value={pasteText}
+                onChange={(e) => setPasteText(e.target.value)}
+                placeholder={`Example:
 2.0410 0.7306
 2.9280 1.3441
 7.7040 3.8894`}
-    style={{
-      width: "100%",
-      minHeight: "100px",
-      padding: "0.5rem",
-      borderRadius: "0.6rem",
-      border: "1px solid #1f2937",
-      background: "#020617",
-      color: "#e5e7eb",
-      fontFamily: "monospace",
-      fontSize: "0.8rem",
-      resize: "vertical",
-    }}
-  />
+                style={{
+                  width: "100%",
+                  minHeight: "100px",
+                  padding: "0.5rem",
+                  borderRadius: "0.6rem",
+                  border: "1px solid #1f2937",
+                  background: "#020617",
+                  color: "#e5e7eb",
+                  fontFamily: "monospace",
+                  fontSize: "0.8rem",
+                  resize: "vertical",
+                }}
+              />
 
-  <button
-    onClick={handlePasteIntoTable}
-    style={{
-      marginTop: "0.5rem",
-      padding: "0.35rem 0.8rem",
-      borderRadius: "999px",
-      border: "none",
-      background:
-        "linear-gradient(135deg, rgba(56,189,248,1), rgba(129,140,248,1))",
-      color: "#020617",
-      fontWeight: 600,
-      fontSize: "0.8rem",
-      cursor: "pointer",
-    }}
-  >
-    Fill Table from Pasted Matrix
-  </button>
-</section>
+              <button
+                onClick={handlePasteIntoTable}
+                style={{
+                  marginTop: "0.5rem",
+                  padding: "0.35rem 0.8rem",
+                  borderRadius: "999px",
+                  border: "none",
+                  background:
+                    "linear-gradient(135deg, rgba(56,189,248,1), rgba(129,140,248,1))",
+                  color: "#020617",
+                  fontWeight: 600,
+                  fontSize: "0.8rem",
+                  cursor: "pointer",
+                }}
+              >
+                Fill Table from Pasted Matrix
+              </button>
+            </section>
 
+            {/* Main decision table */}
             <section style={{ marginBottom: "1rem" }}>
               <div
                 style={{
@@ -518,10 +527,7 @@ export default function App() {
                           )}
                         </td>
                         {criteria.map((_, ci) => (
-                          <td
-                            key={ci}
-                            style={{ padding: "0.4rem 0.5rem" }}
-                          >
+                          <td key={ci} style={{ padding: "0.4rem 0.5rem" }}>
                             <input
                               type="number"
                               value={alt.values[ci]}
@@ -646,7 +652,10 @@ export default function App() {
                 <h3>Weights Used</h3>
                 <p style={{ marginTop: "0.25rem" }}>
                   {response.weights_used
-                    .map((w, i) => `${criteria[i]?.name || "C" + (i + 1)}: ${w.toFixed(4)}`)
+                    .map(
+                      (w, i) =>
+                        `${criteria[i]?.name || "C" + (i + 1)}: ${w.toFixed(4)}`
+                    )
                     .join(" | ")}
                 </p>
 
