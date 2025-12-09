@@ -3,7 +3,38 @@ import axios from "axios";
 
 const API_BASE = "https://mcdm-backend.onrender.com"; // FastAPI backend
 
+function parsePastedTable(text) {
+  // Split into non-empty lines
+  const rows = text
+    .trim()
+    .split(/\r?\n/)
+    .map((r) => r.trim())
+    .filter((r) => r.length > 0);
+
+  const matrix = rows.map((row) => {
+    // split by comma, semicolon, tab or spaces
+    const cells = row.split(/[\s,;]+/).filter((c) => c.length > 0);
+    return cells.map((c) => {
+      const v = Number(c);
+      if (Number.isNaN(v)) {
+        throw new Error(`Non-numeric value found: "${c}"`);
+      }
+      return v;
+    });
+  });
+
+  // sanity: all rows same length
+  const n = matrix[0].length;
+  if (!matrix.every((r) => r.length === n)) {
+    throw new Error("All rows must have same number of columns");
+  }
+
+  return matrix;
+}
+
 export default function App() {
+
+  const [pasteText, setPasteText] = useState("");
   // Criteria: each has a name and type (min/max)
   const [criteria, setCriteria] = useState([
     { name: "Ra (Surface Roughness)", type: "min" },
@@ -145,6 +176,34 @@ export default function App() {
 
     const nameForIndex = (i) =>
       alternatives[i] ? alternatives[i].name || `Alternative ${i + 1}` : `Alternative ${i + 1}`;
+
+
+    const handlePasteIntoTable = () => {
+  try {
+    const matrix = parsePastedTable(pasteText);
+
+    const m = matrix.length;
+    const n = matrix[0].length;
+
+    // Build criteria array if needed
+    const newCriteria = Array.from({ length: n }, (_, j) => ({
+      name: criteria[j]?.name || `Criterion ${j + 1}`,
+      type: criteria[j]?.type || "max",
+    }));
+
+    // Build alternatives with values from matrix
+    const newAlternatives = Array.from({ length: m }, (_, i) => ({
+      name: alternatives[i]?.name || `Alt ${i + 1}`,
+      values: matrix[i].map((v) => String(v)),
+    }));
+
+    setCriteria(newCriteria);
+    setAlternatives(newAlternatives);
+    setError("");
+  } catch (e) {
+    setError(e.message || "Failed to parse pasted table");
+  }
+};
 
     return (
       <div style={{ marginTop: "1rem" }}>
