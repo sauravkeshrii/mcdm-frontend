@@ -276,6 +276,62 @@ export default function App() {
         >
           {/* LEFT: TABLE INPUT */}
           <div>
+            <section
+  style={{
+    marginBottom: "1rem",
+    padding: "0.75rem",
+    borderRadius: "0.75rem",
+    border: "1px solid #1f2937",
+    background: "#020617",
+  }}
+>
+  <div style={{ marginBottom: "0.5rem" }}>
+    <strong>Paste matrix from Excel / CSV (optional)</strong>
+    <div style={{ fontSize: "0.8rem", color: "#9ca3af" }}>
+      Paste rows of numbers here. We&apos;ll fill the table for you.
+    </div>
+  </div>
+
+  <textarea
+    value={pasteText}
+    onChange={(e) => setPasteText(e.target.value)}
+    placeholder={`Example:
+2.0410 0.7306
+2.9280 1.3441
+7.7040 3.8894`}
+    style={{
+      width: "100%",
+      minHeight: "100px",
+      padding: "0.5rem",
+      borderRadius: "0.6rem",
+      border: "1px solid #1f2937",
+      background: "#020617",
+      color: "#e5e7eb",
+      fontFamily: "monospace",
+      fontSize: "0.8rem",
+      resize: "vertical",
+    }}
+  />
+
+  <button
+    onClick={handlePasteIntoTable}
+    style={{
+      marginTop: "0.5rem",
+      padding: "0.35rem 0.8rem",
+      borderRadius: "999px",
+      border: "none",
+      background:
+        "linear-gradient(135deg, rgba(56,189,248,1), rgba(129,140,248,1))",
+      color: "#020617",
+      fontWeight: 600,
+      fontSize: "0.8rem",
+      cursor: "pointer",
+    }}
+  >
+    Fill Table from Pasted Matrix
+  </button>
+</section>
+
             <section style={{ marginBottom: "1rem" }}>
               <div
                 style={{
